@@ -1,13 +1,22 @@
 # Pass Vault
 
-A single-file, offline password encryptor. Open `pass-vault.html` in a browser, enter a master passphrase, and encrypt or decrypt text. Everything happens locally in your browser; there is no server, no dependencies, and no network access.
+A single-file password encryptor that runs entirely in your browser. Enter a master passphrase, then encrypt or decrypt text. There is no server, no dependencies, and no network access.
+
+**Live page:** https://nabgit.github.io/pass-vault/
 
 ## How to use
 
-1. Download `pass-vault.html` and save it on your device.
-2. Open the saved file in any modern browser (Chrome, Firefox, Safari, Edge).
-3. **Encrypt:** enter your master passphrase in both passphrase fields, paste the password into **Text**, and click **Encrypt**. Store the resulting `v1.…` string wherever you like.
-4. **Decrypt:** enter your master passphrase, paste a `v1.…` string into **Text**, and click **Decrypt**.
+You can run it two ways:
+
+- **Online:** open the live page above. This is convenient on any device, but it needs an internet connection and loads whatever code is in this repo at that moment (see Security notes).
+- **Offline:** download [`index.html`](index.html), save it on your device, and open the saved file in any modern browser. This copy never changes unless you replace it.
+
+Then:
+
+1. **Encrypt:** enter your master passphrase in both passphrase fields, paste the password into **Text**, and click **Encrypt**. Store the resulting `v1.…` string wherever you like.
+2. **Decrypt:** enter your master passphrase, paste a `v1.…` string into **Text**, and click **Decrypt**.
+
+Both versions use the same format, so a string encrypted in one decrypts in the other.
 
 There is no recovery. If you forget the master passphrase, nothing encrypted with it can be decrypted.
 
@@ -33,7 +42,7 @@ Because the salt and IV are random every time, encrypting the same password twic
 
 - **Your master passphrase is the whole security model.** Use something long and random, such as 5–6 randomly chosen words. PBKDF2 slows down guessing but does not stop a determined attacker with GPUs from cracking a weak passphrase.
 - **Keep your encrypted strings private.** This tool is safe to publish, but the `v1.…` strings you generate should not be committed to a public repository or posted publicly.
-- **Use a saved local copy.** A hosted copy of this page (for example on GitHub Pages) is only as trustworthy as whoever controls the hosting account at that moment. Review the file once, save it, and use that copy.
+- **The live page is only as trustworthy as this repo.** Anyone who can push to it could change the page to capture passphrases. The repo owner should use two-factor sign-in on GitHub and keep write access limited. If you're not the owner, prefer the offline copy, or fork the repo and host your own.
 - **Browser extensions can read the page.** Extensions with access to all sites can see what you type. Consider using a browser profile with no extensions.
 - **The clipboard is not private.** Copied passwords can persist in clipboard history (Windows Win+V, phone keyboards, cloud clipboard sync).
 - This is a small personal tool, not an audited product. For everyday password management, a mature open-source manager such as KeePassXC or Bitwarden adds backups, sync, and autofill.
