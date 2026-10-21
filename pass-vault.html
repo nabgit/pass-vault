@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<!-- Blocks all network access: the browser enforces "nothing is sent anywhere". -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'">
+<title>Pass Vault</title>
+<style>
+  body{font-family:system-ui,sans-serif;max-width:560px;margin:24px auto;padding:0 16px;line-height:1.4}
+  label{display:block;margin:14px 0 4px;font-weight:600}
+  input,textarea{width:100%;box-sizing:border-box;padding:10px;font-size:16px;font-family:monospace}
+  textarea{height:110px}
+  button{padding:10px 18px;font-size:16px;margin:12px 8px 0 0;cursor:pointer}
+  #msg{margin-top:10px;color:#b00}
+  small{color:#666}
+</style>
+</head>
+<body>
+<h2>Pass Vault</h2>
+<small>Runs 100% in your browser. Nothing is sent anywhere. Save this file and use it offline.</small>
+
+<label for="key">Master passphrase</label>
+<input id="key" type="password" autocomplete="off">
+
+<label for="key2">Confirm passphrase <small>(needed to encrypt)</small></label>
+<input id="key2" type="password" autocomplete="off">
+
+<label for="inp">Text</label>
+<textarea id="inp" placeholder="Password to encrypt, or encrypted text to decrypt"
+  autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></textarea>
+
+<button onclick="enc()">Encrypt</button>
+<button onclick="dec()">Decrypt</button>
+<button onclick="copyOut()">Copy result</button>
+
+<label for="out">Result</label>
+<textarea id="out" readonly
+  autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></textarea>
+<div id="msg"></div>
+
+<script>
+// Format: "v1." + base64( salt(16) | iv(12) | ciphertext+tag )
+// KDF: PBKDF2-SHA256, 600000 iterations. Cipher: AES-256-GCM.
+// Passphrase is Unicode-normalized (NFC) so the same characters always give the same key.
+const ITER = 600000, te = new TextEncoder(), td = new TextDecoder();
+const $ = id => document.getElementById(id);
+const b64 = u8 => btoa(String.fromCharCode(...u8));
+const unb64 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
+
+async function deriveKey(pass, salt) {
+  const base = await crypto.subtle.importKey("raw", te.encode(pass.normalize("NFC")), "PBKDF2", false, ["deriveKey"]);
+  return crypto.subtle.deriveKey(
+    {name: "PBKDF2", salt, iterations: ITER, hash: "SHA-256"},
+    base, {name: "AES-GCM", length: 256}, false, ["encrypt", "decrypt"]);
+}
+
+async function enc() {
+  $("msg").textContent = "";
+  try {
+    if (!$("key").value || !$("inp").value) throw new Error("Enter passphrase and text.");
+    if ($("key").value.normalize("NFC") !== $("key2").value.normalize("NFC"))
+      throw new Error("Passphrases don't match. Retype both before encrypting.");
+    const salt = crypto.getRandomValues(new Uint8Array(16));
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const k = await deriveKey($("key").value, salt);
+    const ct = new Uint8Array(await crypto.subtle.encrypt({name: "AES-GCM", iv}, k, te.encode($("inp").value)));
+    const all = new Uint8Array(28 + ct.length);
+    all.set(salt, 0); all.set(iv, 16); all.set(ct, 28);
+    $("out").value = "v1." + b64(all);
+  } catch (e) { $("out").value = ""; $("msg").textContent = e.message; }
+}
+
+async function dec() {
+  $("msg").textContent = "";
+  $("out").value = "";
+  const s = $("inp").value.trim();
+  if (!$("key").value) { $("msg").textContent = "Enter your passphrase."; return; }
+  if (!s.startsWith("v1.")) { $("msg").textContent = "Not a valid encrypted string."; return; }
+  try {
+    const all = unb64(s.slice(3));
+    const k = await deriveKey($("key").value, all.slice(0, 16));
+    const pt = await crypto.subtle.decrypt({name: "AES-GCM", iv: all.slice(16, 28)}, k, all.slice(28));
+    $("out").value = td.decode(pt);
+  } catch (e) { $("msg").textContent = "Decryption failed: wrong passphrase or corrupted text."; }
+}
+
+function copyOut() { navigator.clipboard.writeText($("out").value); }
+</script>
+</body>
+</html>
